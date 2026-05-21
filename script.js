@@ -15,8 +15,10 @@ const updateText = () => {
   const converted = convertKutenTouten(source);
   const replacements = countMatches(source, /[、。]/g);
 
+  const charLength = [...source].length;
+
   convertedText.value = converted;
-  charCount.textContent = `${source.length.toLocaleString("ja-JP")}文字`;
+  charCount.textContent = `${charLength.toLocaleString("ja-JP")}文字`;
   replacementCount.textContent = `置換 ${replacements.toLocaleString("ja-JP")}件`;
   copyStatus.textContent = "コピー待機中";
   copyStatus.dataset.state = "";
