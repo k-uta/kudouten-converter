@@ -1,0 +1,247 @@
+:root {
+  color-scheme: light;
+  --bg: #f6f7f2;
+  --surface: #ffffff;
+  --ink: #20231f;
+  --muted: #667064;
+  --line: #d8ddd2;
+  --accent: #126c61;
+  --accent-strong: #0d5149;
+  --accent-soft: #e5f2ef;
+  --warn: #9b5c16;
+  --shadow: 0 18px 48px rgba(32, 35, 31, 0.1);
+  font-family:
+    "BIZ UDPGothic", "Yu Gothic UI", "Hiragino Sans", Meiryo, system-ui,
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    linear-gradient(180deg, rgba(229, 242, 239, 0.76), rgba(246, 247, 242, 0) 38%),
+    var(--bg);
+  color: var(--ink);
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+.app-shell {
+  width: min(1180px, calc(100% - 32px));
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 32px 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 18px;
+}
+
+.app-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.9rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.rule-strip {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.rule-strip span {
+  min-width: 84px;
+  padding: 10px 12px;
+  border: 1px solid rgba(18, 108, 97, 0.22);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  text-align: center;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  min-height: 460px;
+}
+
+.editor-panel {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(280px, 1fr);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.panel-head {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+label {
+  font-weight: 700;
+}
+
+.icon-button {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 14px;
+  background: #f9faf7;
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    transform 150ms ease;
+}
+
+.icon-button:hover {
+  border-color: #aeb9ad;
+  background: #eef2eb;
+}
+
+.icon-button:active {
+  transform: translateY(1px);
+}
+
+.primary-button {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.primary-button:hover {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+
+.text-button {
+  color: var(--muted);
+}
+
+textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  resize: none;
+  border: 0;
+  outline: 0;
+  padding: 18px;
+  background: transparent;
+  color: var(--ink);
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: normal;
+  tab-size: 4;
+}
+
+textarea::placeholder {
+  color: #9aa39a;
+}
+
+textarea:focus {
+  box-shadow: inset 0 0 0 2px rgba(18, 108, 97, 0.24);
+}
+
+#convertedText {
+  background: #fbfcfa;
+}
+
+.status-bar {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.status-bar [data-state="done"] {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.status-bar [data-state="warn"] {
+  color: var(--warn);
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    width: min(100% - 20px, 1180px);
+    padding: 18px 0;
+  }
+
+  .app-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .rule-strip {
+    justify-content: stretch;
+  }
+
+  .rule-strip span {
+    flex: 1 1 120px;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .editor-panel {
+    grid-template-rows: auto minmax(240px, 44vh);
+  }
+
+  textarea {
+    min-height: 240px;
+    padding: 14px;
+  }
+}
