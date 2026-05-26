@@ -1,14 +1,15 @@
 # kudouten-converter
 
 A tiny, dependency-free web tool that converts Japanese punctuation in plain
-text. It replaces the Japanese comma (`、`) with a full-width comma (`，`) and
-the Japanese period (`。`) with a full-width period (`．`).
+text. It can convert the Japanese comma (`、`) and period (`。`) to full-width
+comma (`，`) and period (`．`), or reverse them back.
 
 ## Features
 
 - Instant conversion as you type
+- Forward and reverse punctuation conversion
 - One-click copy of the result as plain text
-- Live character count and replacement count
+- Live character, line, manuscript-page, variant-selector, and byte counts
 - Runs entirely in the browser — no text leaves your device
 - No build step and no dependencies
 
@@ -18,6 +19,8 @@ the Japanese period (`。`) with a full-width period (`．`).
 | ----- | ------ |
 | `、`  | `，`   |
 | `。`  | `．`   |
+
+Reverse conversion swaps the same pairs in the opposite direction.
 
 ## Usage
 

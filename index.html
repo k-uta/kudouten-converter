@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="読点と句点をカンマ・ピリオドへ置換するプレーンテキスト変換ツールです。">
+  <meta name="description" content="読点と句点をカンマ・ピリオドへ相互変換するプレーンテキスト変換ツールです。">
   <meta name="theme-color" content="#126c61">
   <title>句読点変換</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -18,11 +18,23 @@
         <p class="eyebrow">plain text converter</p>
         <h1>句読点変換</h1>
       </div>
-      <div class="rule-strip" aria-label="置換ルール">
-        <span>、 → ，</span>
-        <span>。 → ．</span>
-      </div>
     </header>
+
+    <section class="tool-controls" aria-label="変換設定">
+      <fieldset class="direction-control">
+        <legend>変換方向</legend>
+        <div class="segmented-control">
+          <label>
+            <input type="radio" name="conversionDirection" value="forward" checked>
+            <span>、。→，．</span>
+          </label>
+          <label>
+            <input type="radio" name="conversionDirection" value="reverse">
+            <span>，．→、。</span>
+          </label>
+        </div>
+      </fieldset>
+    </section>
 
     <section class="workspace" aria-label="変換エリア">
       <div class="editor-panel">
@@ -42,8 +54,67 @@
       </div>
     </section>
 
+    <section class="count-panel" aria-label="文字数カウント">
+      <div class="count-grid">
+        <div class="count-item">
+          <span class="count-label">文字数</span>
+          <strong class="count-value" id="charCount">0</strong>
+          <span class="count-unit">文字</span>
+        </div>
+        <div class="count-item">
+          <span class="count-label">改行除く</span>
+          <strong class="count-value" id="noLineBreakCount">0</strong>
+          <span class="count-unit">文字</span>
+        </div>
+        <div class="count-item">
+          <span class="count-label">改行・空白除く</span>
+          <strong class="count-value" id="noWhitespaceCount">0</strong>
+          <span class="count-unit">文字</span>
+        </div>
+        <div class="count-item">
+          <span class="count-label">行数</span>
+          <strong class="count-value" id="lineCount">0</strong>
+          <span class="count-unit">行</span>
+        </div>
+        <div class="count-item">
+          <span class="count-label">原稿用紙</span>
+          <strong class="count-value" id="manuscriptCount">0</strong>
+          <span class="count-unit">枚</span>
+        </div>
+        <div class="count-item">
+          <span class="count-label">異体字</span>
+          <strong class="count-value" id="variantCount">0</strong>
+          <span class="count-unit">文字</span>
+        </div>
+        <div class="count-item">
+          <span class="count-label">UTF-8</span>
+          <strong class="count-value" id="utf8Bytes">0</strong>
+          <span class="count-unit">バイト</span>
+        </div>
+        <div class="count-item">
+          <span class="count-label">UTF-16</span>
+          <strong class="count-value" id="utf16Bytes">0</strong>
+          <span class="count-unit">バイト</span>
+        </div>
+        <div class="count-item">
+          <span class="count-label">Shift-JIS</span>
+          <strong class="count-value" id="shiftJisBytes">0</strong>
+          <span class="count-unit">バイト</span>
+        </div>
+        <div class="count-item">
+          <span class="count-label">EUC-JP</span>
+          <strong class="count-value" id="eucJpBytes">0</strong>
+          <span class="count-unit">バイト</span>
+        </div>
+        <div class="count-item">
+          <span class="count-label">JIS</span>
+          <strong class="count-value" id="jisBytes">0</strong>
+          <span class="count-unit">バイト</span>
+        </div>
+      </div>
+    </section>
+
     <footer class="status-bar" aria-live="polite">
-      <span id="charCount">0文字</span>
       <span id="replacementCount">置換 0件</span>
       <span id="copyStatus">コピー待機中</span>
     </footer>
