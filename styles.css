@@ -43,7 +43,7 @@ textarea {
   margin: 0 auto;
   padding: 32px 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
   gap: 18px;
 }
 
@@ -67,6 +67,32 @@ h1 {
   font-size: clamp(2rem, 4vw, 3.9rem);
   line-height: 1;
   letter-spacing: 0;
+}
+
+.header-links {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.header-link {
+  color: var(--accent-strong);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.header-link:hover {
+  color: var(--accent);
+}
+
+.header-link:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid rgba(18, 108, 97, 0.42);
+  outline-offset: 4px;
 }
 
 .tool-controls {
@@ -316,6 +342,40 @@ textarea:focus {
   font-weight: 700;
 }
 
+.site-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 18px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+}
+
+.site-footer a {
+  color: var(--accent-strong);
+  font-weight: 700;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.site-footer a:hover {
+  color: var(--accent);
+}
+
+.site-footer a:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid rgba(18, 108, 97, 0.42);
+  outline-offset: 4px;
+}
+
 @media (max-width: 760px) {
   .app-shell {
     width: min(100% - 20px, 1180px);
@@ -324,6 +384,15 @@ textarea:focus {
 
   .app-header {
     align-items: stretch;
+    flex-direction: column;
+  }
+
+  .header-links {
+    justify-content: flex-start;
+  }
+
+  .site-footer {
+    align-items: flex-start;
     flex-direction: column;
   }
 
