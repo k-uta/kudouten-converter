@@ -1,5 +1,7 @@
 # kudouten-converter
 
+Published page: <https://k-uta.github.io/kudouten-converter/>
+
 A tiny, dependency-free web tool that converts Japanese punctuation in plain
 text. It can convert the Japanese comma (`、`) and period (`。`) to full-width
 comma (`，`) and period (`．`), or reverse them back.
