@@ -306,7 +306,7 @@ textarea:focus {
 
 .count-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 8px;
 }
 
@@ -314,7 +314,7 @@ textarea:focus {
   min-width: 0;
   min-height: 76px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(max-content, 1fr) auto;
   grid-template-rows: auto 1fr;
   align-items: end;
   gap: 4px 8px;
@@ -334,11 +334,10 @@ textarea:focus {
 
 .count-value {
   min-width: 0;
-  overflow: hidden;
   color: var(--ink);
-  font-size: 1.65rem;
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -480,6 +479,6 @@ textarea:focus {
   }
 
   .count-value {
-    font-size: 1.35rem;
+    font-size: 1.25rem;
   }
 }
