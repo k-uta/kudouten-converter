@@ -3,6 +3,7 @@ const convertedText = document.querySelector("#convertedText");
 const copyButton = document.querySelector("#copyButton");
 const clearButton = document.querySelector("#clearButton");
 const directionInputs = document.querySelectorAll("[name='conversionDirection']");
+const sentenceLineBreaks = document.querySelector("#sentenceLineBreaks");
 const charCount = document.querySelector("#charCount");
 const noLineBreakCount = document.querySelector("#noLineBreakCount");
 const noWhitespaceCount = document.querySelector("#noWhitespaceCount");
@@ -48,6 +49,14 @@ const formatNumber = (number) => number.toLocaleString("ja-JP");
 
 const countMatches = (text, pattern) => (text.match(pattern) || []).length;
 const isAsciiOnly = (text) => /^[\x00-\x7f]*$/.test(text);
+const sentenceEndPattern = /([。．][」』）】〕〉》\]\)]*)(?:[ \t]+)?(?=[^\n])/g;
+const protectedLinePattern =
+  /^\s*(?:%|>|[-*+]\s+|\d+[.)]\s+|\\(?:begin|end|documentclass|usepackage|section|subsection|subsubsection|chapter|part|title|author|date|maketitle|tableofcontents|bibliography|bibliographystyle|item)\b|\\\[|\\\]|\\\(|\\\)|\$\$)/;
+const explicitLatexBreakPattern = /\\\\\s*(?:%.*)?$/;
+const protectedBlockStartPattern =
+  /^\s*(?:\\\[\s*$|\$\$\s*$|\\begin\{(?:equation|align|alignat|flalign|gather|multline|split|cases|matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|array|tabular|tabularx|table|figure|tikzpicture|lstlisting|verbatim|itemize|enumerate|description)\*?\})/;
+const protectedBlockEndPattern =
+  /^\s*(?:\\\]\s*$|\$\$\s*$|\\end\{(?:equation|align|alignat|flalign|gather|multline|split|cases|matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|array|tabular|tabularx|table|figure|tikzpicture|lstlisting|verbatim|itemize|enumerate|description)\*?\})/;
 
 const getDirection = () => {
   const checkedDirection = document.querySelector(
@@ -62,6 +71,82 @@ const convertKutenTouten = (text, direction) =>
     (converted, [from, to]) => converted.split(from).join(to),
     text,
   );
+
+const shouldInsertAsciiSpace = (previous, next) =>
+  /[A-Za-z0-9]$/.test(previous) && /^[A-Za-z0-9]/.test(next);
+
+const joinWrappedLines = (previous, next) => {
+  const trimmedPrevious = previous.replace(/[ \t]+$/, "");
+  const trimmedNext = next.replace(/^[ \t]+/, "");
+
+  if (!trimmedPrevious) {
+    return trimmedNext;
+  }
+
+  if (!trimmedNext) {
+    return trimmedPrevious;
+  }
+
+  return `${trimmedPrevious}${
+    shouldInsertAsciiSpace(trimmedPrevious, trimmedNext) ? " " : ""
+  }${trimmedNext}`;
+};
+
+const addSentenceLineBreaks = (text) =>
+  text.replace(sentenceEndPattern, "$1\n");
+
+const isProtectedLine = (line) =>
+  protectedLinePattern.test(line) || explicitLatexBreakPattern.test(line);
+
+const startsProtectedBlock = (line) =>
+  protectedBlockStartPattern.test(line) && !/\\end\{/.test(line);
+
+const formatLineBreakBlock = (block) => {
+  const lines = block.split("\n");
+  const formattedLines = [];
+  let paragraph = "";
+  let inProtectedBlock = false;
+
+  const flushParagraph = () => {
+    if (!paragraph) {
+      return;
+    }
+
+    formattedLines.push(...addSentenceLineBreaks(paragraph).split("\n"));
+    paragraph = "";
+  };
+
+  for (const line of lines) {
+    if (inProtectedBlock) {
+      formattedLines.push(line);
+      inProtectedBlock = !protectedBlockEndPattern.test(line);
+      continue;
+    }
+
+    if (isProtectedLine(line)) {
+      flushParagraph();
+      formattedLines.push(line);
+      inProtectedBlock = startsProtectedBlock(line);
+      continue;
+    }
+
+    paragraph = paragraph ? joinWrappedLines(paragraph, line) : line.trimEnd();
+  }
+
+  flushParagraph();
+  return formattedLines.join("\n");
+};
+
+const formatSentenceLineBreaks = (text) =>
+  text
+    .replace(/\r\n|\r/g, "\n")
+    .split(/(\n[ \t]*\n(?:[ \t]*\n)*)/)
+    .map((block) =>
+      /^\n[ \t]*\n(?:[ \t]*\n)*$/.test(block)
+        ? block
+        : formatLineBreakBlock(block),
+    )
+    .join("");
 
 const countGraphemes = (text) => {
   if (!text) {
@@ -406,14 +491,18 @@ const updateCountPanel = (source) => {
 const updateText = () => {
   const source = sourceText.value;
   const direction = getDirection();
-  const converted = convertKutenTouten(source, direction);
+  const convertedKutenTouten = convertKutenTouten(source, direction);
+  const converted = sentenceLineBreaks.checked
+    ? formatSentenceLineBreaks(convertedKutenTouten)
+    : convertedKutenTouten;
   const replacements = countMatches(source, conversions[direction].pattern);
+  const lineBreakLabel = sentenceLineBreaks.checked ? " / 句点改行" : "";
 
   convertedText.value = converted;
   updateCountPanel(source);
   replacementCount.textContent = `${conversions[direction].label} ${formatNumber(
     replacements,
-  )}件`;
+  )}件${lineBreakLabel}`;
   copyStatus.textContent = "コピー待機中";
   copyStatus.dataset.state = "";
 };
@@ -436,6 +525,7 @@ const writePlainText = async (text) => {
 
 sourceText.addEventListener("input", updateText);
 directionInputs.forEach((input) => input.addEventListener("change", updateText));
+sentenceLineBreaks.addEventListener("change", updateText);
 
 clearButton.addEventListener("click", () => {
   sourceText.value = "";

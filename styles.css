@@ -100,6 +100,7 @@ h1 {
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .direction-control {
@@ -160,6 +161,39 @@ h1 {
 }
 
 .segmented-control input:focus-visible + span {
+  outline: 2px solid rgba(18, 108, 97, 0.42);
+  outline-offset: 2px;
+}
+
+.line-break-control {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.line-break-control input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.line-break-control:has(input:checked) {
+  border-color: rgba(18, 108, 97, 0.42);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.line-break-control:has(input:focus-visible) {
   outline: 2px solid rgba(18, 108, 97, 0.42);
   outline-offset: 2px;
 }
@@ -400,8 +434,12 @@ textarea:focus {
     justify-content: stretch;
   }
 
-  .direction-control {
+  .direction-control,
+  .line-break-control {
     width: 100%;
+  }
+
+  .direction-control {
     align-items: stretch;
     flex-direction: column;
   }

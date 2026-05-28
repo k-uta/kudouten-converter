@@ -10,6 +10,7 @@ comma (`，`) and period (`．`), or reverse them back.
 
 - Instant conversion as you type
 - Forward and reverse punctuation conversion
+- Optional sentence line-break cleanup for LaTeX and email drafts
 - One-click copy of the result as plain text
 - Live character, line, manuscript-page, variant-selector, and byte counts
 - Runs entirely in the browser — no text leaves your device
@@ -23,6 +24,13 @@ comma (`，`) and period (`．`), or reverse them back.
 | `。`  | `．`   |
 
 Reverse conversion swaps the same pairs in the opposite direction.
+
+## Sentence line breaks
+
+Enable `句点で改行` to remove hard-wrapped line breaks inside a paragraph and
+insert line breaks after Japanese sentence periods (`。` or `．`). Blank lines
+are preserved as intentional paragraph breaks, and standalone LaTeX structure
+lines such as `\begin{...}` and `\end{...}` are left in place.
 
 ## Usage
 
