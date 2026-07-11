@@ -523,6 +523,18 @@ const writePlainText = async (text) => {
   }
 };
 
+const inputPanel = document.querySelector(".input-panel");
+
+if (typeof ResizeObserver !== "undefined" && inputPanel) {
+  const resizeObserver = new ResizeObserver(() => {
+    // ドラッグリサイズはインラインの width を設定するので、それを合図に幅を固定する
+    if (sourceText.style.width) {
+      inputPanel.classList.add("user-sized");
+    }
+  });
+  resizeObserver.observe(sourceText);
+}
+
 sourceText.addEventListener("input", updateText);
 directionInputs.forEach((input) => input.addEventListener("change", updateText));
 sentenceLineBreaks.addEventListener("change", updateText);

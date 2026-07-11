@@ -199,14 +199,16 @@ h1 {
 }
 
 .workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
   gap: 16px;
-  min-height: 460px;
 }
 
 .editor-panel {
-  min-width: 0;
+  flex: 1 1 0;
+  min-width: min(100%, 320px);
+  max-width: 100%;
   display: grid;
   grid-template-rows: auto minmax(280px, 1fr);
   border: 1px solid var(--line);
@@ -283,6 +285,19 @@ textarea {
   white-space: pre-wrap;
   overflow-wrap: normal;
   tab-size: 4;
+}
+
+/* ドラッグでリサイズ後は入力パネルをそのサイズに固定し、結果パネルが残りへ回り込む */
+.input-panel.user-sized {
+  flex: 0 0 auto;
+}
+
+#sourceText {
+  height: 420px;
+  resize: both;
+  /* パネルの min-width 320px から左右ボーダー 2px を引いた値 */
+  min-width: 318px;
+  max-width: min(1178px, calc(100vw - 60px));
 }
 
 textarea::placeholder {
@@ -453,18 +468,30 @@ textarea:focus {
     width: 100%;
   }
 
-  .workspace {
-    grid-template-columns: 1fr;
-    min-height: 0;
+  .editor-panel,
+  .input-panel.user-sized {
+    flex: 1 1 100%;
   }
 
   .editor-panel {
-    grid-template-rows: auto minmax(240px, 44vh);
+    grid-template-rows: auto minmax(240px, 1fr);
   }
 
   textarea {
     min-height: 240px;
     padding: 14px;
+  }
+
+  /* 1カラム時は横幅を常に画面いっぱいに固定し、縦方向のみリサイズ可能にする */
+  #sourceText {
+    width: 100% !important;
+    max-width: 100%;
+    height: 44vh;
+    resize: vertical;
+  }
+
+  #convertedText {
+    height: 44vh;
   }
 }
 
