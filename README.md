@@ -11,8 +11,9 @@ structural indentation, and highlights every change it made.
 
 - Instant conversion as you type
 - Forward and reverse punctuation conversion
-- Optional LaTeX reformatting into one sentence per line with structural
-  indentation, enabled automatically when LaTeX source is pasted
+- Optional LaTeX reformatting into one sentence per line — Japanese and English
+  — with structural indentation, enabled automatically when LaTeX source is
+  pasted
 - Every change highlighted in the result: converted punctuation, inserted line
   breaks, added indentation, and joined lines
 - One-click copy of the result as plain text
@@ -38,6 +39,14 @@ without LaTeX markup is simply broken into one sentence per line.
 
 - One sentence per line: a line break is inserted after every `．`/`。`, and
   hard-wrapped lines of the same paragraph are joined back together first
+- English sentences break after `.`, `!` or `?` when a space follows and the
+  next sentence starts with a capital letter, a command, math, a quote or a
+  Japanese character. Abbreviations (`Fig.`, `No.`, `e.g.`, `et al.`, …),
+  initials (`K. Sawada`), decimals (`12.9`), file names (`fig.pdf`) and domains
+  (`example.org`) are left alone
+- Joining restores the space that a line break represents in Latin text and
+  drops it between Japanese characters, matching how LaTeX itself reads the
+  source
 - Blank lines are kept, because a paragraph break in the rendered PDF needs two
   line breaks; runs of blank lines collapse into one
 - Quoted lines (`>`) and list items (`- `, `1. `) stay on their own line and
@@ -51,8 +60,10 @@ LaTeX sources are indented on top of that:
 - `\section`, `\subsection`, `\subsubsection`, `\paragraph` and their
   siblings indent everything that follows them, one level per heading level
 - Lines that must stay on their own line are only re-indented, never merged:
-  comments, lines ending in `%` or `\\`, standalone commands such as
-  `\label{...}`, and standalone URLs
+  comments, lines ending in `%` or `\\`, structural commands such as
+  `\label{...}`, and standalone URLs. A hard-wrapped line that happens to hold
+  only an inline command (`\texttt{...}`, `\cite{...}`, a custom macro) is
+  joined back into the sentence it belongs to
 - Math and table environments (`equation`, `align`, `tabular`, `tikzpicture`,
   …) and `\[ ... \]` blocks keep their line structure and are only re-indented
 - `verbatim`, `lstlisting` and similar environments are copied through
