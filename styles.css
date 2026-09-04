@@ -9,6 +9,9 @@
   --accent-strong: #0d5149;
   --accent-soft: #e5f2ef;
   --warn: #9b5c16;
+  --diff-punct: #b45309;
+  --diff-punct-soft: rgba(180, 83, 9, 0.16);
+  --diff-space-soft: rgba(18, 108, 97, 0.2);
   --shadow: 0 18px 48px rgba(32, 35, 31, 0.1);
   font-family:
     "BIZ UDPGothic", "Yu Gothic UI", "Hiragino Sans", Meiryo, system-ui,
@@ -209,26 +212,35 @@ h1 {
   flex: 1 1 0;
   min-width: min(100%, 320px);
   max-width: 100%;
-  display: grid;
-  grid-template-rows: auto minmax(280px, 1fr);
+  display: flex;
+  flex-direction: column;
+  /* clip は hidden と違いスクロール領域を作らないので，見出しの sticky が効いたまま角丸で切り抜ける */
+  overflow: clip;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow);
-  overflow: hidden;
 }
 
+/* スクロールしても消去・コピーへ手が届くよう見出しを上端へ固定する */
 .panel-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  flex: 0 0 auto;
   min-height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   padding: 12px;
+  border-radius: 8px 8px 0 0;
   border-bottom: 1px solid var(--line);
+  background: var(--surface);
 }
 
-label {
+label,
+.panel-title {
   font-weight: 700;
 }
 
@@ -293,11 +305,17 @@ textarea {
 }
 
 #sourceText {
-  height: 420px;
+  flex: 1 1 auto;
+  height: auto;
   resize: both;
   /* パネルの min-width 320px から左右ボーダー 2px を引いた値 */
   min-width: 318px;
   max-width: min(1178px, calc(100vw - 60px));
+}
+
+#sourceText,
+.output {
+  border-radius: 0 0 8px 8px;
 }
 
 textarea::placeholder {
@@ -308,8 +326,100 @@ textarea:focus {
   box-shadow: inset 0 0 0 2px rgba(18, 108, 97, 0.24);
 }
 
+/* 差分を色付けするため出力は textarea ではなく pre で描画する。
+   pre は内容の高さを持つので，絶対配置にしてパネル高の中でスクロールさせる */
+.output-shell {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 280px;
+}
+
+.output {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 18px;
+  overflow: auto;
+  font: inherit;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: normal;
+  tab-size: 4;
+}
+
+.output:empty::before {
+  content: attr(data-placeholder);
+  color: #9aa39a;
+}
+
+.output:focus-visible {
+  outline: 0;
+  box-shadow: inset 0 0 0 2px rgba(18, 108, 97, 0.24);
+}
+
 #convertedText {
   background: #fbfcfa;
+}
+
+.diff-punct {
+  border-radius: 2px;
+  background: var(--diff-punct-soft);
+  box-shadow: inset 0 -2px 0 var(--diff-punct);
+  color: var(--diff-punct);
+}
+
+.diff-space {
+  border-radius: 2px;
+  background: var(--diff-space-soft);
+}
+
+/* 挿入された改行の位置に矢印を出す（擬似要素なのでコピーには含まれない） */
+.diff-break::before {
+  color: var(--accent-strong);
+  content: "\21b5";
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+/* 行が連結された位置に印を出す */
+.diff-join {
+  display: inline-block;
+  width: 0;
+  height: 1em;
+  border-left: 2px dotted var(--diff-punct);
+  vertical-align: -0.18em;
+}
+
+.diff-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px 14px;
+  flex-wrap: wrap;
+}
+
+.diff-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.diff-legend b {
+  font-variant-numeric: tabular-nums;
+}
+
+.diff-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.diff-legend .diff-join {
+  width: 14px;
+  height: 14px;
+  border-left-width: 3px;
+  vertical-align: 0;
 }
 
 .count-panel {
@@ -473,10 +583,6 @@ textarea:focus {
     flex: 1 1 100%;
   }
 
-  .editor-panel {
-    grid-template-rows: auto minmax(240px, 1fr);
-  }
-
   textarea {
     min-height: 240px;
     padding: 14px;
@@ -490,8 +596,9 @@ textarea:focus {
     resize: vertical;
   }
 
-  #convertedText {
+  .output-shell {
     height: 44vh;
+    min-height: 240px;
   }
 }
 

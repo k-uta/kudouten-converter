@@ -17,6 +17,13 @@ const eucJpBytes = document.querySelector("#eucJpBytes");
 const jisBytes = document.querySelector("#jisBytes");
 const replacementCount = document.querySelector("#replacementCount");
 const copyStatus = document.querySelector("#copyStatus");
+const diffLegend = document.querySelector("#diffLegend");
+const punctLegend = document.querySelector("#punctLegend");
+const spaceLegend = document.querySelector("#spaceLegend");
+const joinLegend = document.querySelector("#joinLegend");
+const punctDiffCount = document.querySelector("#punctDiffCount");
+const spaceDiffCount = document.querySelector("#spaceDiffCount");
+const joinDiffCount = document.querySelector("#joinDiffCount");
 
 const conversions = {
   forward: {
@@ -47,6 +54,8 @@ let triedLegacyByteMaps = false;
 // ユーザーがLaTeX整形を自分で切り替えたら貼り付け時の自動判定は行わない
 let latexFormatChosenByUser = false;
 let statusNotice = "";
+// 出力はpreへ描画するため，コピー用のプレーンテキストを別に保持する
+let convertedValue = "";
 
 const formatNumber = (number) => number.toLocaleString("ja-JP");
 
@@ -469,6 +478,147 @@ const formatLatexSource = (text) => {
   return formatted.length ? `${formatted.join("\n")}${trailingNewline}` : "";
 };
 
+const htmlEscapes = { "&": "&amp;", "<": "&lt;", ">": "&gt;" };
+
+const escapeHtml = (text) => text.replace(/[&<>]/g, (char) => htmlEscapes[char]);
+
+const normalizeLineBreaks = (text) => text.replace(/\r\n|\r/g, "\n");
+
+const isDiffWhitespace = (char) =>
+  char === " " || char === "\t" || char === "\n";
+
+const countNewlines = (text) => {
+  let count = 0;
+
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === "\n") {
+      count += 1;
+    }
+  }
+
+  return count;
+};
+
+// 句読点変換は1文字を1文字へ置き換え，整形は空白しか動かさない．
+// よって空白以外の文字は入力と出力で1対1に対応し，両者を走査するだけで差分が確定する
+const buildDiffSegments = (source, output) => {
+  const segments = [];
+  let sourceIndex = 0;
+  let outputIndex = 0;
+
+  const push = (kind, text, addsBreak = false) => {
+    const last = segments[segments.length - 1];
+
+    if (last && last.kind === kind && kind !== "join") {
+      last.text += text;
+      last.addsBreak = last.addsBreak || addsBreak;
+      return;
+    }
+
+    segments.push({ kind, text, addsBreak });
+  };
+
+  while (outputIndex < output.length) {
+    const loopStart = outputIndex;
+    const sourceSpaceStart = sourceIndex;
+    const outputSpaceStart = outputIndex;
+
+    while (sourceIndex < source.length && isDiffWhitespace(source[sourceIndex])) {
+      sourceIndex += 1;
+    }
+
+    while (outputIndex < output.length && isDiffWhitespace(output[outputIndex])) {
+      outputIndex += 1;
+    }
+
+    const sourceSpace = source.slice(sourceSpaceStart, sourceIndex);
+    const outputSpace = output.slice(outputSpaceStart, outputIndex);
+
+    if (outputSpace) {
+      push(
+        sourceSpace === outputSpace ? "same" : "space",
+        outputSpace,
+        countNewlines(outputSpace) > countNewlines(sourceSpace),
+      );
+    } else if (sourceSpace) {
+      // 出力側で空白が消えた位置＝行が連結された位置
+      push("join", "");
+    }
+
+    while (
+      outputIndex < output.length &&
+      sourceIndex < source.length &&
+      !isDiffWhitespace(output[outputIndex]) &&
+      !isDiffWhitespace(source[sourceIndex])
+    ) {
+      const matches = source[sourceIndex] === output[outputIndex];
+      const runStart = outputIndex;
+
+      while (
+        outputIndex < output.length &&
+        sourceIndex < source.length &&
+        !isDiffWhitespace(output[outputIndex]) &&
+        !isDiffWhitespace(source[sourceIndex]) &&
+        (source[sourceIndex] === output[outputIndex]) === matches
+      ) {
+        sourceIndex += 1;
+        outputIndex += 1;
+      }
+
+      push(matches ? "same" : "punct", output.slice(runStart, outputIndex));
+    }
+
+    if (outputIndex === loopStart) {
+      // 対応が取れなくなった場合は残りを装飾せずに出す
+      push("same", output.slice(outputIndex));
+      break;
+    }
+  }
+
+  return segments;
+};
+
+const renderDiff = (segments) => {
+  const counts = { punct: 0, space: 0, join: 0 };
+  let html = "";
+
+  for (const segment of segments) {
+    if (segment.kind === "same") {
+      html += escapeHtml(segment.text);
+      continue;
+    }
+
+    if (segment.kind === "join") {
+      counts.join += 1;
+      html += '<span class="diff-join"></span>';
+      continue;
+    }
+
+    if (segment.kind === "punct") {
+      counts.punct += segment.text.length;
+      html += `<span class="diff-punct">${escapeHtml(segment.text)}</span>`;
+      continue;
+    }
+
+    counts.space += 1;
+    html += `<span class="diff-space${
+      segment.addsBreak ? " diff-break" : ""
+    }">${escapeHtml(segment.text)}</span>`;
+  }
+
+  return { html, counts };
+};
+
+const updateDiffLegend = (counts) => {
+  punctDiffCount.textContent = formatNumber(counts.punct);
+  spaceDiffCount.textContent = formatNumber(counts.space);
+  joinDiffCount.textContent = formatNumber(counts.join);
+  punctLegend.hidden = !counts.punct;
+  spaceLegend.hidden = !counts.space;
+  joinLegend.hidden = !counts.join;
+  diffLegend.hidden = !(counts.punct || counts.space || counts.join);
+};
+
 const countGraphemes = (text) => {
   if (!text) {
     return 0;
@@ -818,8 +968,13 @@ const updateText = () => {
     : convertedKutenTouten;
   const replacements = countMatches(source, conversions[direction].pattern);
   const formatLabel = latexFormat.checked ? " / LaTeX整形" : "";
+  const { html, counts } = renderDiff(
+    buildDiffSegments(normalizeLineBreaks(source), normalizeLineBreaks(converted)),
+  );
 
-  convertedText.value = converted;
+  convertedValue = converted;
+  convertedText.innerHTML = html;
+  updateDiffLegend(counts);
   updateCountPanel(source);
   replacementCount.textContent = `${conversions[direction].label} ${formatNumber(
     replacements,
@@ -835,10 +990,16 @@ const writePlainText = async (text) => {
     return;
   }
 
-  convertedText.focus();
-  convertedText.select();
+  const fallback = document.createElement("textarea");
+  fallback.value = text;
+  fallback.readOnly = true;
+  fallback.style.position = "fixed";
+  fallback.style.top = "0";
+  fallback.style.opacity = "0";
+  document.body.append(fallback);
+  fallback.select();
   const copied = document.execCommand("copy");
-  convertedText.setSelectionRange(0, 0);
+  fallback.remove();
 
   if (!copied) {
     throw new Error("Copy command failed.");
@@ -890,14 +1051,14 @@ clearButton.addEventListener("click", () => {
 });
 
 copyButton.addEventListener("click", async () => {
-  if (!convertedText.value) {
+  if (!convertedValue) {
     copyStatus.textContent = "コピーする文字がありません";
     copyStatus.dataset.state = "warn";
     return;
   }
 
   try {
-    await writePlainText(convertedText.value);
+    await writePlainText(convertedValue);
     copyStatus.textContent = "プレーンテキストでコピーしました";
     copyStatus.dataset.state = "done";
   } catch {

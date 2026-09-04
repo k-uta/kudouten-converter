@@ -4,9 +4,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="読点と句点をカンマ・ピリオドへ相互変換し、LaTeXソースのインデントと改行も整えるプレーンテキスト変換ツールです。">
+  <meta name="description" content="読点と句点をカンマ・ピリオドへ相互変換し、LaTeXソースのインデントと改行も整えるテキスト整形ツールです。変換箇所は色付きで表示します。">
   <meta name="theme-color" content="#126c61">
-  <title>句読点変換</title>
+  <title>句読点変換・LaTeX整形</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -15,15 +15,15 @@
   <main class="app-shell">
     <header class="app-header">
       <div>
-        <p class="eyebrow">plain text converter</p>
-        <h1>句読点変換</h1>
+        <p class="eyebrow">punctuation &amp; latex formatter</p>
+        <h1>句読点変換・LaTeX整形</h1>
       </div>
       <nav class="header-links" aria-label="Project links">
         <a class="header-link" href="https://github.com/k-uta/kudouten-converter" target="_blank" rel="noopener">リポジトリ</a>
       </nav>
     </header>
 
-    <section class="tool-controls" aria-label="変換設定">
+    <section class="tool-controls" aria-label="変換・整形設定">
       <fieldset class="direction-control">
         <legend>変換方向</legend>
         <div class="segmented-control">
@@ -43,21 +43,23 @@
       </label>
     </section>
 
-    <section class="workspace" aria-label="変換エリア">
+    <section class="workspace" aria-label="変換・整形エリア">
       <div class="editor-panel input-panel">
         <div class="panel-head">
           <label for="sourceText">入力</label>
           <button class="icon-button text-button" id="clearButton" type="button">消去</button>
         </div>
-        <textarea id="sourceText" spellcheck="false" placeholder="ここに文章を貼り付け" autofocus></textarea>
+        <textarea id="sourceText" spellcheck="false" placeholder="ここに文章やLaTeXソースを貼り付け" autofocus></textarea>
       </div>
 
       <div class="editor-panel">
         <div class="panel-head">
-          <label for="convertedText">変換結果</label>
+          <span class="panel-title" id="convertedLabel">変換・整形結果</span>
           <button class="icon-button primary-button" id="copyButton" type="button">コピー</button>
         </div>
-        <textarea id="convertedText" spellcheck="false" placeholder="変換結果" readonly></textarea>
+        <div class="output-shell">
+          <pre class="output" id="convertedText" role="region" tabindex="0" aria-labelledby="convertedLabel" data-placeholder="変換・整形結果"></pre>
+        </div>
       </div>
     </section>
 
@@ -122,7 +124,18 @@
     </section>
 
     <footer class="status-bar" aria-live="polite">
-      <span id="replacementCount">置換 0件</span>
+      <span id="replacementCount">変換 0件</span>
+      <span class="diff-legend" id="diffLegend" hidden>
+        <span class="diff-legend-item" id="punctLegend">
+          <i class="diff-swatch diff-punct"></i>句読点 <b id="punctDiffCount">0</b>
+        </span>
+        <span class="diff-legend-item" id="spaceLegend">
+          <i class="diff-swatch diff-space"></i>改行・字下げ <b id="spaceDiffCount">0</b>
+        </span>
+        <span class="diff-legend-item" id="joinLegend">
+          <i class="diff-swatch diff-join"></i>行の連結 <b id="joinDiffCount">0</b>
+        </span>
+      </span>
       <span id="copyStatus">コピー待機中</span>
     </footer>
     <footer class="site-footer">
