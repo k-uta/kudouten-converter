@@ -39,11 +39,16 @@ without LaTeX markup is simply broken into one sentence per line.
 
 - One sentence per line: a line break is inserted after every `．`/`。`, and
   hard-wrapped lines of the same paragraph are joined back together first
-- English sentences break after `.`, `!` or `?` when a space follows and the
-  next sentence starts with a capital letter, a command, math, a quote or a
-  Japanese character. Abbreviations (`Fig.`, `No.`, `e.g.`, `et al.`, …),
-  initials (`K. Sawada`), decimals (`12.9`), file names (`fig.pdf`) and domains
-  (`example.org`) are left alone
+- English sentences break after `.`, `!` or `?` when the next sentence starts
+  with a capital letter, a command, math or a Japanese character — with or
+  without a space after the period, so `…per control step.At $N=8192$…` is
+  split as well. When a space follows, an opening quote or bracket also counts
+  as a sentence start
+- Abbreviations (`Fig.`, `No.`, `Nos.`, `Eq.`, `Sec.`, `e.g.`, `et al.`, …),
+  initials and initialisms (`K. Sawada`, `U.S.`), decimals (`12.9`), version
+  numbers (`1.5.1`), file names (`fig.pdf`), domains (`example.org`) and email
+  addresses are left alone, while a unit that ends a sentence (`for at least
+  5 s.`) still breaks
 - Joining restores the space that a line break represents in Latin text and
   drops it between Japanese characters, matching how LaTeX itself reads the
   source

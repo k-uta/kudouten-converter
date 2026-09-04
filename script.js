@@ -68,6 +68,10 @@ const japaneseSentenceClosers = "」』）】〕〉》])";
 const asciiSentenceClosers = "」』）】〕〉》])\"'”’}";
 // 英文で文頭になり得る文字（小文字・数字で始まるなら文の途中とみなす）
 const asciiSentenceStarters = "\\$`([{\"'“‘";
+// ピリオドの後に空白がない場合は，誤検出を避けるためコマンドと数式だけを文頭とみなす
+const asciiTightSentenceStarters = "\\$";
+// 大文字のイニシャルや頭字語（K. Sawada / U.S. など）はピリオドで終わっても文末ではない
+const asciiInitialismPattern = /^(?:[A-Z]\.)*[A-Z]$/;
 // ピリオドで終わるが文末ではない略語（小文字化して比較する）
 const asciiAbbreviations = new Set([
   "al",
@@ -177,10 +181,28 @@ const endsAsciiSentence = (text, index) => {
 
   const word = readWordBeforePeriod(text, index);
 
-  return word.length !== 1 && !asciiAbbreviations.has(word.toLowerCase());
+  return (
+    !asciiInitialismPattern.test(word) &&
+    !asciiAbbreviations.has(word.toLowerCase())
+  );
 };
 
-// 和文は句点の直後で必ず改行し，英文はピリオドの後に空白と文頭らしい文字が続く場合だけ改行する
+// 文頭らしさの判定．空白なしで続く場合は大文字・コマンド・数式・和文字だけを認める
+const startsAsciiSentence = (char, spaced) => {
+  if (char === undefined) {
+    return false;
+  }
+
+  const starters = spaced ? asciiSentenceStarters : asciiTightSentenceStarters;
+
+  return (
+    /[A-Z]/.test(char) ||
+    cjkCharacterPattern.test(char) ||
+    starters.includes(char)
+  );
+};
+
+// 和文は句点の直後で必ず改行し，英文はピリオドの後に文頭らしい文字が続く場合だけ改行する
 const addSentenceLineBreaks = (text) => {
   let result = "";
   let index = 0;
@@ -213,11 +235,7 @@ const addSentenceLineBreaks = (text) => {
 
     const nextChar = text[nextStart];
     const breaksLine = ascii
-      ? nextStart > sentenceEnd &&
-        nextChar !== undefined &&
-        (/[A-Z]/.test(nextChar) ||
-          asciiSentenceStarters.includes(nextChar) ||
-          cjkCharacterPattern.test(nextChar)) &&
+      ? startsAsciiSentence(nextChar, nextStart > sentenceEnd) &&
         endsAsciiSentence(text, index)
       : nextChar !== undefined && nextChar !== "\n";
 
