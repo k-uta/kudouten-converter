@@ -45,7 +45,7 @@ without LaTeX markup is simply broken into one sentence per line.
   split as well. When a space follows, an opening quote or bracket also counts
   as a sentence start
 - Abbreviations (`Fig.`, `No.`, `Nos.`, `Eq.`, `Sec.`, `e.g.`, `et al.`, …),
-  initials and initialisms (`K. Sawada`, `U.S.`), decimals (`12.9`), version
+  initials and initialisms (`U. Kawakami`, `U.S.`), decimals (`12.9`), version
   numbers (`1.5.1`), file names (`fig.pdf`), domains (`example.org`) and email
   addresses are left alone, while a unit that ends a sentence (`for at least
   5 s.`) still breaks
