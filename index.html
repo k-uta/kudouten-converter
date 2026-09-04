@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="読点と句点をカンマ・ピリオドへ相互変換するプレーンテキスト変換ツールです。">
+  <meta name="description" content="読点と句点をカンマ・ピリオドへ相互変換し、LaTeXソースのインデントと改行も整えるプレーンテキスト変換ツールです。">
   <meta name="theme-color" content="#126c61">
   <title>句読点変換</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -37,9 +37,9 @@
           </label>
         </div>
       </fieldset>
-      <label class="line-break-control">
-        <input type="checkbox" id="sentenceLineBreaks">
-        <span>句点で改行</span>
+      <label class="format-control" title="句点ごとに改行し、\begin/\end と見出しでインデントします">
+        <input type="checkbox" id="latexFormat">
+        <span>LaTeX整形</span>
       </label>
     </section>
 

@@ -3,7 +3,7 @@ const convertedText = document.querySelector("#convertedText");
 const copyButton = document.querySelector("#copyButton");
 const clearButton = document.querySelector("#clearButton");
 const directionInputs = document.querySelectorAll("[name='conversionDirection']");
-const sentenceLineBreaks = document.querySelector("#sentenceLineBreaks");
+const latexFormat = document.querySelector("#latexFormat");
 const charCount = document.querySelector("#charCount");
 const noLineBreakCount = document.querySelector("#noLineBreakCount");
 const noWhitespaceCount = document.querySelector("#noWhitespaceCount");
@@ -44,19 +44,15 @@ const graphemeSegmenter =
     : null;
 let legacyByteMaps = null;
 let triedLegacyByteMaps = false;
+// ユーザーがLaTeX整形を自分で切り替えたら貼り付け時の自動判定は行わない
+let latexFormatChosenByUser = false;
+let statusNotice = "";
 
 const formatNumber = (number) => number.toLocaleString("ja-JP");
 
 const countMatches = (text, pattern) => (text.match(pattern) || []).length;
 const isAsciiOnly = (text) => /^[\x00-\x7f]*$/.test(text);
 const sentenceEndPattern = /([。．][」』）】〕〉》\]\)]*)(?:[ \t]+)?(?=[^\n])/g;
-const protectedLinePattern =
-  /^\s*(?:%|>|[-*+]\s+|\d+[.)]\s+|\\(?:begin|end|documentclass|usepackage|section|subsection|subsubsection|chapter|part|title|author|date|maketitle|tableofcontents|bibliography|bibliographystyle|item)\b|\\\[|\\\]|\\\(|\\\)|\$\$)/;
-const explicitLatexBreakPattern = /\\\\\s*(?:%.*)?$/;
-const protectedBlockStartPattern =
-  /^\s*(?:\\\[\s*$|\$\$\s*$|\\begin\{(?:equation|align|alignat|flalign|gather|multline|split|cases|matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|array|tabular|tabularx|table|figure|tikzpicture|lstlisting|verbatim|itemize|enumerate|description)\*?\})/;
-const protectedBlockEndPattern =
-  /^\s*(?:\\\]\s*$|\$\$\s*$|\\end\{(?:equation|align|alignat|flalign|gather|multline|split|cases|matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|array|tabular|tabularx|table|figure|tikzpicture|lstlisting|verbatim|itemize|enumerate|description)\*?\})/;
 
 const getDirection = () => {
   const checkedDirection = document.querySelector(
@@ -95,58 +91,383 @@ const joinWrappedLines = (previous, next) => {
 const addSentenceLineBreaks = (text) =>
   text.replace(sentenceEndPattern, "$1\n");
 
-const isProtectedLine = (line) =>
-  protectedLinePattern.test(line) || explicitLatexBreakPattern.test(line);
+const INDENT_UNIT = "    ";
+const latexSectionRanks = new Map([
+  ["part", 0],
+  ["chapter", 1],
+  ["section", 2],
+  ["subsection", 3],
+  ["subsubsection", 4],
+  ["paragraph", 5],
+  ["subparagraph", 6],
+]);
+// インデントを深くしない環境
+const latexTransparentEnvironments = new Set(["document"]);
+// 中身を一切書き換えない環境
+const latexVerbatimEnvironments = new Set([
+  "verbatim",
+  "Verbatim",
+  "lstlisting",
+  "minted",
+  "alltt",
+  "comment",
+  "semiverbatim",
+  "filecontents",
+]);
+// 行の並びは保ったままインデントだけ整える環境
+const latexLiteralEnvironments = new Set([
+  "equation",
+  "eqnarray",
+  "align",
+  "alignat",
+  "flalign",
+  "gather",
+  "multline",
+  "split",
+  "aligned",
+  "alignedat",
+  "gathered",
+  "cases",
+  "dcases",
+  "array",
+  "matrix",
+  "pmatrix",
+  "bmatrix",
+  "Bmatrix",
+  "vmatrix",
+  "Vmatrix",
+  "smallmatrix",
+  "displaymath",
+  "math",
+  "tabular",
+  "tabularx",
+  "tabu",
+  "longtable",
+  "supertabular",
+  "tikzpicture",
+  "pgfpicture",
+]);
+const latexEnvironmentPattern = /\\(begin|end)\s*\{\s*([^}]*?)\s*\}/g;
+const latexSectionPattern =
+  /^\\(part|chapter|section|subsection|subsubsection|paragraph|subparagraph)\*?\s*(?=[[{])/;
+const latexItemPattern = /^\\item\b/;
+const latexHardBreakPattern = /\\\\\*?(?:\s*\[[^\]]*\])?\s*$/;
+const latexStandaloneUrlPattern = /^(?:https?|ftp):\/\/\S+$/;
+// 引用行と箇条書き行はLaTeX以外の下書きでも独立した行として扱う
+const plainStandalonePattern = /^(?:>|[-*+][ \t]+|\d+[.)][ \t]+)/;
+const latexDisplayMathOpenPattern = /^(?:\\\[|\$\$)$/;
+const latexDisplayMathClosePattern = /^(?:\\\]|\$\$)$/;
+const latexCommandTokenPattern = /^\\(?:[a-zA-Z@]+\*?|[^a-zA-Z@\s])/;
+const latexDocumentEndPattern = /\\end\s*\{\s*document\s*\}/;
+const latexSignaturePattern =
+  /\\(?:documentclass|usepackage|begin\s*\{|end\s*\{|(?:sub)*section\*?\s*\{|paragraph\s*\{|item\b|cite\s*\{|ref\s*\{|label\s*\{|caption\s*\{|(?:re)?newcommand|maketitle|textbf\s*\{|textit\s*\{|frac\s*\{|mathrm\s*\{)/g;
 
-const startsProtectedBlock = (line) =>
-  protectedBlockStartPattern.test(line) && !/\\end\{/.test(line);
+const latexEnvironmentBaseName = (name) => name.replace(/\*+$/, "");
 
-const formatLineBreakBlock = (block) => {
-  const lines = block.split("\n");
-  const formattedLines = [];
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const looksLikeLatex = (text) =>
+  (text.match(latexSignaturePattern) || []).length >= 2;
+
+// 行末のコメントは改行を飲み込むため，その行は他の行と連結できない
+const hasLatexComment = (line) => {
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+
+    if (char === "%") {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const findBalancedGroupEnd = (line, start, open, close) => {
+  let depth = 0;
+
+  for (let index = start; index < line.length; index += 1) {
+    const char = line[index];
+
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+
+    if (char === open) {
+      depth += 1;
+      continue;
+    }
+
+    if (char === close) {
+      depth -= 1;
+
+      if (depth === 0) {
+        return index + 1;
+      }
+    }
+  }
+
+  return -1;
+};
+
+// コマンドと引数だけで構成された行かどうか（本文が続く行は false）
+const isLatexCommandOnlyLine = (line) => {
+  let index = 0;
+  let sawCommand = false;
+
+  while (index < line.length) {
+    const char = line[index];
+
+    if (char === " " || char === "\t") {
+      index += 1;
+      continue;
+    }
+
+    if (char === "{" || char === "}") {
+      index += 1;
+      sawCommand = true;
+      continue;
+    }
+
+    const command = latexCommandTokenPattern.exec(line.slice(index));
+
+    if (!command) {
+      return false;
+    }
+
+    index += command[0].length;
+    sawCommand = true;
+
+    while (index < line.length) {
+      const argument = /^[ \t]*([[{])/.exec(line.slice(index));
+
+      if (!argument) {
+        break;
+      }
+
+      const groupStart = index + argument[0].length - 1;
+      const groupEnd =
+        argument[1] === "["
+          ? findBalancedGroupEnd(line, groupStart, "[", "]")
+          : findBalancedGroupEnd(line, groupStart, "{", "}");
+
+      if (groupEnd < 0) {
+        return false;
+      }
+
+      index = groupEnd;
+    }
+  }
+
+  return sawCommand;
+};
+
+const countLatexIndentLevels = (stack) =>
+  stack.filter((environment) => environment.indents).length;
+
+const findLatexEnvironment = (stack, names) =>
+  stack.find((environment) =>
+    names.has(latexEnvironmentBaseName(environment.name)),
+  );
+
+const closesLatexEnvironment = (line, name) =>
+  new RegExp(`\\\\end\\s*\\{\\s*${escapeRegExp(name)}\\s*\\}`).test(line);
+
+// 行内の \begin / \end を順に反映し，その行を書き出すべきインデント段数を返す
+const applyLatexEnvironments = (line, stack) => {
+  let minLevel = countLatexIndentLevels(stack);
+
+  latexEnvironmentPattern.lastIndex = 0;
+
+  let match = latexEnvironmentPattern.exec(line);
+
+  while (match) {
+    const [, kind, rawName] = match;
+    const name = rawName.trim();
+
+    if (kind === "begin") {
+      stack.push({ name, indents: !latexTransparentEnvironments.has(name) });
+    } else if (stack.length) {
+      stack.pop();
+    }
+
+    minLevel = Math.min(minLevel, countLatexIndentLevels(stack));
+    match = latexEnvironmentPattern.exec(line);
+  }
+
+  return minLevel;
+};
+
+const formatLatexSource = (text) => {
+  const lines = text.replace(/\r\n|\r/g, "\n").split("\n");
+  const trailingNewline = /\n[ \t]*$/.test(text) ? "\n" : "";
+  const formatted = [];
+  const environmentStack = [];
+  const sectionStack = [];
   let paragraph = "";
-  let inProtectedBlock = false;
+  let paragraphLevel = 0;
+  let verbatimEnvironment = null;
+  let displayMath = null;
+
+  const currentLevel = () =>
+    countLatexIndentLevels(environmentStack) + sectionStack.length;
+
+  const pushLine = (level, content) => {
+    formatted.push(
+      content ? INDENT_UNIT.repeat(Math.max(level, 0)) + content : "",
+    );
+  };
+
+  const pushBlankLine = () => {
+    if (formatted.length && formatted[formatted.length - 1] !== "") {
+      formatted.push("");
+    }
+  };
 
   const flushParagraph = () => {
     if (!paragraph) {
       return;
     }
 
-    formattedLines.push(...addSentenceLineBreaks(paragraph).split("\n"));
+    for (const sentence of addSentenceLineBreaks(paragraph).split("\n")) {
+      pushLine(paragraphLevel, sentence.trim());
+    }
+
     paragraph = "";
   };
 
   for (const line of lines) {
-    if (inProtectedBlock) {
-      formattedLines.push(line);
-      inProtectedBlock = !protectedBlockEndPattern.test(line);
-      continue;
+    if (verbatimEnvironment) {
+      if (!closesLatexEnvironment(line, verbatimEnvironment)) {
+        formatted.push(line);
+        continue;
+      }
+
+      verbatimEnvironment = null;
     }
 
-    if (isProtectedLine(line)) {
+    const trimmed = line.trim();
+
+    if (!trimmed) {
       flushParagraph();
-      formattedLines.push(line);
-      inProtectedBlock = startsProtectedBlock(line);
+      pushBlankLine();
       continue;
     }
 
-    paragraph = paragraph ? joinWrappedLines(paragraph, line) : line.trimEnd();
+    if (displayMath) {
+      const closesDisplayMath = latexDisplayMathClosePattern.test(trimmed);
+      pushLine(currentLevel() + (closesDisplayMath ? 0 : 1), trimmed);
+
+      if (closesDisplayMath) {
+        displayMath = null;
+      }
+
+      continue;
+    }
+
+    if (latexDisplayMathOpenPattern.test(trimmed)) {
+      flushParagraph();
+      pushLine(currentLevel(), trimmed);
+      displayMath = trimmed;
+      continue;
+    }
+
+    const wasLiteral = Boolean(
+      findLatexEnvironment(environmentStack, latexLiteralEnvironments),
+    );
+
+    if (latexDocumentEndPattern.test(trimmed)) {
+      sectionStack.length = 0;
+    }
+
+    const levelBefore = countLatexIndentLevels(environmentStack);
+    const minLevel = applyLatexEnvironments(trimmed, environmentStack);
+    const levelAfter = countLatexIndentLevels(environmentStack);
+    const lineLevel = minLevel + sectionStack.length;
+    const verbatimEntry = findLatexEnvironment(
+      environmentStack,
+      latexVerbatimEnvironments,
+    );
+
+    if (verbatimEntry) {
+      verbatimEnvironment = verbatimEntry.name;
+    }
+
+    if (wasLiteral) {
+      flushParagraph();
+      pushLine(lineLevel, trimmed);
+      continue;
+    }
+
+    const sectionMatch = latexSectionPattern.exec(trimmed);
+
+    if (sectionMatch) {
+      const rank = latexSectionRanks.get(sectionMatch[1]);
+      flushParagraph();
+
+      while (
+        sectionStack.length &&
+        sectionStack[sectionStack.length - 1] >= rank
+      ) {
+        sectionStack.pop();
+      }
+
+      pushLine(minLevel + sectionStack.length, trimmed);
+      sectionStack.push(rank);
+      continue;
+    }
+
+    if (
+      levelBefore !== levelAfter ||
+      minLevel !== levelBefore ||
+      hasLatexComment(trimmed) ||
+      latexHardBreakPattern.test(trimmed) ||
+      latexStandaloneUrlPattern.test(trimmed) ||
+      isLatexCommandOnlyLine(trimmed)
+    ) {
+      flushParagraph();
+      pushLine(lineLevel, trimmed);
+      continue;
+    }
+
+    if (plainStandalonePattern.test(trimmed)) {
+      flushParagraph();
+      // 入れ子の箇条書きを崩さないよう，環境の外では元の字下げを残す
+      formatted.push(
+        lineLevel
+          ? INDENT_UNIT.repeat(lineLevel) + trimmed
+          : line.replace(/[ \t]+$/, ""),
+      );
+      continue;
+    }
+
+    if (latexItemPattern.test(trimmed)) {
+      flushParagraph();
+      paragraph = trimmed;
+      paragraphLevel = lineLevel;
+      continue;
+    }
+
+    if (!paragraph) {
+      paragraphLevel = lineLevel;
+    }
+
+    paragraph = paragraph ? joinWrappedLines(paragraph, trimmed) : trimmed;
   }
 
   flushParagraph();
-  return formattedLines.join("\n");
-};
 
-const formatSentenceLineBreaks = (text) =>
-  text
-    .replace(/\r\n|\r/g, "\n")
-    .split(/(\n[ \t]*\n(?:[ \t]*\n)*)/)
-    .map((block) =>
-      /^\n[ \t]*\n(?:[ \t]*\n)*$/.test(block)
-        ? block
-        : formatLineBreakBlock(block),
-    )
-    .join("");
+  while (formatted.length && formatted[formatted.length - 1] === "") {
+    formatted.pop();
+  }
+
+  return formatted.length ? `${formatted.join("\n")}${trailingNewline}` : "";
+};
 
 const countGraphemes = (text) => {
   if (!text) {
@@ -492,19 +813,20 @@ const updateText = () => {
   const source = sourceText.value;
   const direction = getDirection();
   const convertedKutenTouten = convertKutenTouten(source, direction);
-  const converted = sentenceLineBreaks.checked
-    ? formatSentenceLineBreaks(convertedKutenTouten)
+  const converted = latexFormat.checked
+    ? formatLatexSource(convertedKutenTouten)
     : convertedKutenTouten;
   const replacements = countMatches(source, conversions[direction].pattern);
-  const lineBreakLabel = sentenceLineBreaks.checked ? " / 句点改行" : "";
+  const formatLabel = latexFormat.checked ? " / LaTeX整形" : "";
 
   convertedText.value = converted;
   updateCountPanel(source);
   replacementCount.textContent = `${conversions[direction].label} ${formatNumber(
     replacements,
-  )}件${lineBreakLabel}`;
-  copyStatus.textContent = "コピー待機中";
-  copyStatus.dataset.state = "";
+  )}件${formatLabel}`;
+  copyStatus.textContent = statusNotice || "コピー待機中";
+  copyStatus.dataset.state = statusNotice ? "done" : "";
+  statusNotice = "";
 };
 
 const writePlainText = async (text) => {
@@ -537,7 +859,29 @@ if (typeof ResizeObserver !== "undefined" && inputPanel) {
 
 sourceText.addEventListener("input", updateText);
 directionInputs.forEach((input) => input.addEventListener("change", updateText));
-sentenceLineBreaks.addEventListener("change", updateText);
+
+latexFormat.addEventListener("change", () => {
+  latexFormatChosenByUser = true;
+  updateText();
+});
+
+// LaTeXらしい文章が貼られたら整形を自動で有効にする（手動操作後は尊重する）
+sourceText.addEventListener("paste", (event) => {
+  if (latexFormat.checked || latexFormatChosenByUser) {
+    return;
+  }
+
+  const pasted = event.clipboardData
+    ? event.clipboardData.getData("text/plain")
+    : "";
+
+  if (!pasted || !looksLikeLatex(pasted)) {
+    return;
+  }
+
+  latexFormat.checked = true;
+  statusNotice = "LaTeXを検出したためLaTeX整形を有効にしました";
+});
 
 clearButton.addEventListener("click", () => {
   sourceText.value = "";

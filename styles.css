@@ -165,7 +165,7 @@ h1 {
   outline-offset: 2px;
 }
 
-.line-break-control {
+.format-control {
   min-height: 44px;
   display: inline-flex;
   align-items: center;
@@ -180,20 +180,20 @@ h1 {
   font-weight: 700;
 }
 
-.line-break-control input {
+.format-control input {
   width: 18px;
   height: 18px;
   margin: 0;
   accent-color: var(--accent);
 }
 
-.line-break-control:has(input:checked) {
+.format-control:has(input:checked) {
   border-color: rgba(18, 108, 97, 0.42);
   background: var(--accent-soft);
   color: var(--accent-strong);
 }
 
-.line-break-control:has(input:focus-visible) {
+.format-control:has(input:focus-visible) {
   outline: 2px solid rgba(18, 108, 97, 0.42);
   outline-offset: 2px;
 }
@@ -449,7 +449,7 @@ textarea:focus {
   }
 
   .direction-control,
-  .line-break-control {
+  .format-control {
     width: 100%;
   }
 
