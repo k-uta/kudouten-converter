@@ -61,7 +61,66 @@ const formatNumber = (number) => number.toLocaleString("ja-JP");
 
 const countMatches = (text, pattern) => (text.match(pattern) || []).length;
 const isAsciiOnly = (text) => /^[\x00-\x7f]*$/.test(text);
-const sentenceEndPattern = /([。．][」』）】〕〉》\]\)]*)(?:[ \t]+)?(?=[^\n])/g;
+const japaneseSentenceEnders = "。．";
+const asciiSentenceEnders = ".!?";
+// 終止符に続けて文末に含めてよい閉じ記号
+const japaneseSentenceClosers = "」』）】〕〉》])";
+const asciiSentenceClosers = "」』）】〕〉》])\"'”’}";
+// 英文で文頭になり得る文字（小文字・数字で始まるなら文の途中とみなす）
+const asciiSentenceStarters = "\\$`([{\"'“‘";
+// ピリオドで終わるが文末ではない略語（小文字化して比較する）
+const asciiAbbreviations = new Set([
+  "al",
+  "alg",
+  "app",
+  "approx",
+  "cf",
+  "ch",
+  "chap",
+  "def",
+  "dept",
+  "dr",
+  "e.g",
+  "eq",
+  "eqs",
+  "est",
+  "etc",
+  "fig",
+  "figs",
+  "i.e",
+  "inc",
+  "jr",
+  "lem",
+  "ltd",
+  "max",
+  "min",
+  "mr",
+  "mrs",
+  "ms",
+  "no",
+  "nos",
+  "p",
+  "ph.d",
+  "pp",
+  "prof",
+  "prop",
+  "ref",
+  "refs",
+  "resp",
+  "sec",
+  "secs",
+  "sr",
+  "st",
+  "tab",
+  "tabs",
+  "thm",
+  "univ",
+  "vol",
+  "vs",
+  "w.r.t",
+]);
+const cjkCharacterPattern =
+  /[\u3000-\u303f\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uff00-\uffef]/;
 
 const getDirection = () => {
   const checkedDirection = document.querySelector(
@@ -77,8 +136,10 @@ const convertKutenTouten = (text, direction) =>
     text,
   );
 
-const shouldInsertAsciiSpace = (previous, next) =>
-  /[A-Za-z0-9]$/.test(previous) && /^[A-Za-z0-9]/.test(next);
+// 行末の改行はLaTeXでは空白になるが，和文文字に挟まれた改行は消える．連結もその規則に合わせる
+const shouldInsertJoinSpace = (previous, next) =>
+  !cjkCharacterPattern.test(previous.slice(-1)) &&
+  !cjkCharacterPattern.test(next[0]);
 
 const joinWrappedLines = (previous, next) => {
   const trimmedPrevious = previous.replace(/[ \t]+$/, "");
@@ -93,12 +154,86 @@ const joinWrappedLines = (previous, next) => {
   }
 
   return `${trimmedPrevious}${
-    shouldInsertAsciiSpace(trimmedPrevious, trimmedNext) ? " " : ""
+    shouldInsertJoinSpace(trimmedPrevious, trimmedNext) ? " " : ""
   }${trimmedNext}`;
 };
 
-const addSentenceLineBreaks = (text) =>
-  text.replace(sentenceEndPattern, "$1\n");
+// ピリオド直前の語（イニシャルや略語の判定に使う）
+const readWordBeforePeriod = (text, index) => {
+  let start = index;
+
+  while (start > 0 && /[A-Za-z.]/.test(text[start - 1])) {
+    start -= 1;
+  }
+
+  return text.slice(start, index);
+};
+
+// 小数点・ファイル名・略語・イニシャルを文末と誤判定しないための判定
+const endsAsciiSentence = (text, index) => {
+  if (text[index] !== ".") {
+    return true;
+  }
+
+  const word = readWordBeforePeriod(text, index);
+
+  return word.length !== 1 && !asciiAbbreviations.has(word.toLowerCase());
+};
+
+// 和文は句点の直後で必ず改行し，英文はピリオドの後に空白と文頭らしい文字が続く場合だけ改行する
+const addSentenceLineBreaks = (text) => {
+  let result = "";
+  let index = 0;
+
+  while (index < text.length) {
+    const char = text[index];
+    const ascii = asciiSentenceEnders.includes(char);
+
+    if (!ascii && !japaneseSentenceEnders.includes(char)) {
+      result += char;
+      index += 1;
+      continue;
+    }
+
+    const closers = ascii ? asciiSentenceClosers : japaneseSentenceClosers;
+    let sentenceEnd = index + 1;
+
+    while (sentenceEnd < text.length && closers.includes(text[sentenceEnd])) {
+      sentenceEnd += 1;
+    }
+
+    let nextStart = sentenceEnd;
+
+    while (
+      nextStart < text.length &&
+      (text[nextStart] === " " || text[nextStart] === "\t")
+    ) {
+      nextStart += 1;
+    }
+
+    const nextChar = text[nextStart];
+    const breaksLine = ascii
+      ? nextStart > sentenceEnd &&
+        nextChar !== undefined &&
+        (/[A-Z]/.test(nextChar) ||
+          asciiSentenceStarters.includes(nextChar) ||
+          cjkCharacterPattern.test(nextChar)) &&
+        endsAsciiSentence(text, index)
+      : nextChar !== undefined && nextChar !== "\n";
+
+    result += text.slice(index, sentenceEnd);
+
+    if (breaksLine) {
+      result += "\n";
+      index = nextStart;
+      continue;
+    }
+
+    index = sentenceEnd;
+  }
+
+  return result;
+};
 
 const INDENT_UNIT = "    ";
 const latexSectionRanks = new Map([
@@ -276,6 +411,108 @@ const isLatexCommandOnlyLine = (line) => {
   return sawCommand;
 };
 
+// 単独行に置かれても本文の一部ではなく，文書構造を表すコマンド
+const latexStructuralCommands = new Set([
+  "DeclareMathOperator",
+  "FloatBarrier",
+  "LARGE",
+  "Huge",
+  "Large",
+  "addtocounter",
+  "addtolength",
+  "appendix",
+  "author",
+  "begin",
+  "bibliography",
+  "bibliographystyle",
+  "bigskip",
+  "caption",
+  "captionsetup",
+  "centering",
+  "chapter",
+  "clearpage",
+  "cleardoublepage",
+  "date",
+  "def",
+  "documentclass",
+  "end",
+  "flushend",
+  "footnotesize",
+  "hdashline",
+  "hfill",
+  "hline",
+  "hspace",
+  "huge",
+  "hypersetup",
+  "include",
+  "includegraphics",
+  "input",
+  "item",
+  "keywords",
+  "label",
+  "large",
+  "let",
+  "listoffigures",
+  "listoftables",
+  "maketitle",
+  "medskip",
+  "newcommand",
+  "newenvironment",
+  "newpage",
+  "newtheorem",
+  "noindent",
+  "normalsize",
+  "onecolumn",
+  "paragraph",
+  "part",
+  "printbibliography",
+  "providecommand",
+  "raggedbottom",
+  "raggedleft",
+  "raggedright",
+  "renewcommand",
+  "renewenvironment",
+  "scriptsize",
+  "section",
+  "setcounter",
+  "setlength",
+  "small",
+  "smallskip",
+  "subparagraph",
+  "subsection",
+  "subsubsection",
+  "tableofcontents",
+  "thanks",
+  "tiny",
+  "title",
+  "toprule",
+  "midrule",
+  "bottomrule",
+  "cmidrule",
+  "twocolumn",
+  "urlstyle",
+  "usepackage",
+  "usetikzlibrary",
+  "vfill",
+  "vspace",
+]);
+
+const readLeadingCommand = (line) => {
+  const match = /^[{}\s]*\\([a-zA-Z@]+)/.exec(line);
+
+  return match ? match[1] : "";
+};
+
+// 折り返しでコマンドだけの行になっても，文の途中なら本文として連結する
+const continuesSentence = (paragraph) => {
+  const tail = paragraph.replace(
+    /[\s"'”’)\]}」』）】〕〉》]+$/,
+    "",
+  );
+
+  return Boolean(tail) && !".．。!?！？".includes(tail.slice(-1));
+};
+
 const countLatexIndentLevels = (stack) =>
   stack.filter((environment) => environment.indents).length;
 
@@ -437,7 +674,9 @@ const formatLatexSource = (text) => {
       hasLatexComment(trimmed) ||
       latexHardBreakPattern.test(trimmed) ||
       latexStandaloneUrlPattern.test(trimmed) ||
-      isLatexCommandOnlyLine(trimmed)
+      (isLatexCommandOnlyLine(trimmed) &&
+        (latexStructuralCommands.has(readLeadingCommand(trimmed)) ||
+          !continuesSentence(paragraph)))
     ) {
       flushParagraph();
       pushLine(lineLevel, trimmed);

@@ -397,6 +397,12 @@ textarea:focus {
   flex-wrap: wrap;
 }
 
+/* hidden 属性は下のクラスの display に負けるため、明示的に打ち消す */
+.diff-legend[hidden],
+.diff-legend-item[hidden] {
+  display: none;
+}
+
 .diff-legend-item {
   display: inline-flex;
   align-items: center;
